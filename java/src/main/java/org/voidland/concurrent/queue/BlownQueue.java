@@ -3,6 +3,8 @@ package org.voidland.concurrent.queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * An {@link MPMC_PortionQueue} that internally uses a lock-free queue.<br>
@@ -56,9 +58,10 @@ public class BlownQueue<E>
 	private AtomicInteger size;
     private int maxSize;
     
-    private Object notFullCondition;
-    private Object notEmptyCondition;
-    private Object emptyCondition;
+    private ReentrantLock mutex;
+    private Condition notFullCondition;
+    private Condition notEmptyCondition;
+    private Condition emptyCondition;
     
     private AtomicBoolean aProducerIsWaiting;
     private AtomicBoolean aConsumerIsWaiting;
@@ -91,9 +94,10 @@ public class BlownQueue<E>
     	this.size = new AtomicInteger(0);
         this.maxSize = maxSize;
         
-        this.notFullCondition = new Object();
-        this.notEmptyCondition = new Object();
-        this.emptyCondition = new Object();
+        this.mutex = new ReentrantLock();
+        this.notFullCondition = this.mutex.newCondition();
+        this.notEmptyCondition = this.mutex.newCondition();
+        this.emptyCondition = this.mutex.newCondition();
 
         this.aProducerIsWaiting = new AtomicBoolean(false);
         this.aConsumerIsWaiting = new AtomicBoolean(false);
@@ -102,6 +106,23 @@ public class BlownQueue<E>
         this.workDone = false;
     }
     
+    private void lockMutexIfNecessary()
+    		throws InterruptedException
+    {
+    	if (!this.mutex.isHeldByCurrentThread())
+    	{
+    		this.mutex.lockInterruptibly();
+    	}
+    }
+    
+    private void unlockMutexIfNecessary()
+    {
+    	if (this.mutex.isHeldByCurrentThread())
+    	{
+    		this.mutex.unlock();
+    	}
+    }
+
     @Override
     public void addPortion(E portion)
     		throws InterruptedException
@@ -110,113 +131,135 @@ public class BlownQueue<E>
     	{
     		throw new NullPointerException();
     	}
-    	
-        while (true)
-        {
-            if (this.size.get() >= this.maxSize)
-            {
-                synchronized (this.notFullCondition)
-                {
-                    while (this.size.get() >= this.maxSize)
-                    {
-                    	this.aProducerIsWaiting.set(true);
-                        this.notFullCondition.wait();
-                    }
-                }
-            }
-            
-            if (this.nonBlockingQueue.tryEnqueue(portion))
-            {
-            	break;
-            }
-        }
-        this.size.getAndIncrement();
 
-        if (this.aConsumerIsWaiting.compareAndSet(true, false))
-        {
-            synchronized (this.notEmptyCondition)
-            {
-                this.notEmptyCondition.notifyAll();
-            }
-        }
+    	try
+    	{
+		    while (true)
+		    {
+		        if (this.size.get() >= this.maxSize)
+		        {
+		            this.lockMutexIfNecessary();
+		            
+		            while (this.size.get() >= this.maxSize)
+		            {
+		    		    if (this.aConsumerIsWaiting.compareAndSet(true, false))
+		    		    {
+		    		        this.notEmptyCondition.signalAll();
+		    		    }
+		            	
+		            	this.aProducerIsWaiting.set(true);
+		                this.notFullCondition.await();
+		            }
+		        }
+		        
+		        if (this.nonBlockingQueue.tryEnqueue(portion))
+		        {
+		        	break;
+		        }
+		    }
+		    this.size.getAndIncrement();
+		
+		    if (this.aConsumerIsWaiting.compareAndSet(true, false))
+		    {
+		    	this.lockMutexIfNecessary();
+		        this.notEmptyCondition.signalAll();
+		    }
+    	}
+    	finally
+    	{
+    		this.unlockMutexIfNecessary();
+    	}
     }
     
     @Override
     public E retrievePortion()
     		throws InterruptedException
     {
-        E portion = this.nonBlockingQueue.tryDequeue();
-
-        if (portion == null)
-        {
-            synchronized (this.notEmptyCondition)
-            {
-            	while (true)
-            	{
-                    if (this.workDone)
-                    {
-                        return null;
-                    }
-                    
-                    portion = this.nonBlockingQueue.tryDequeue();
-                    if (portion != null)
-                    {
-                    	break;
-                    }
-                    
-                    this.aConsumerIsWaiting.set(true);
-                    this.notEmptyCondition.wait();
-            	}
-            }
-        }
-        
-        int newSize = this.size.decrementAndGet();
-        
-        if (this.aProducerIsWaiting.compareAndSet(true, false))
-        {
-            synchronized (this.notFullCondition)
-            {
-                this.notFullCondition.notifyAll();
-            }
-        }
-        
-        if (newSize == 0)
-        {
-            synchronized (this.emptyCondition)
-            {
-                this.emptyCondition.notify();
-            }
-        }
-
-        return portion;
+    	try
+    	{
+	        E portion = this.nonBlockingQueue.tryDequeue();
+	        if (portion == null)
+	        {
+	        	this.lockMutexIfNecessary();
+	        	
+	        	while (true)
+	        	{
+	                portion = this.nonBlockingQueue.tryDequeue();
+	                if (portion != null)
+	                {
+	                	break;
+	                }
+	
+	                if (this.workDone)
+	                {
+	                    return null;
+	                }
+	                
+	                if (this.aProducerIsWaiting.compareAndSet(true, false))
+	                {
+	                    this.notFullCondition.signalAll();
+	                }
+	
+	                this.aConsumerIsWaiting.set(true);
+	                this.notEmptyCondition.await();
+	        	}
+	        }
+	        
+	        int newSize = this.size.decrementAndGet();
+	        
+	        if (this.aProducerIsWaiting.compareAndSet(true, false))
+	        {
+	            this.lockMutexIfNecessary();
+	            this.notFullCondition.signalAll();
+	        }
+	        
+	        if (newSize == 0)
+	        {
+	        	this.lockMutexIfNecessary();
+	            this.emptyCondition.signal();
+	        }
+	
+	        return portion;
+    	}
+    	finally
+    	{
+    		this.unlockMutexIfNecessary();
+    	}
     }
     
     @Override
     public void ensureAllPortionsAreRetrieved()
     		throws InterruptedException
     {
-        synchronized (this.notEmptyCondition)
-        {
-            this.notEmptyCondition.notifyAll();
-        }
-
-        synchronized (this.emptyCondition)
-        {
+    	this.mutex.lockInterruptibly();
+    	try
+    	{
+            this.notEmptyCondition.signalAll();
             while (this.size.get() > 0)
             {
-                this.emptyCondition.wait();
+                this.emptyCondition.await();
             }
         }
+    	finally
+    	{
+    		this.mutex.unlock();
+    	}
     }
 
     @Override
     public void stopConsumers(int finalConsumerThreadsCount)
+    		throws InterruptedException
     {
-        synchronized (this.notEmptyCondition)
-        {
-        	this.workDone = true;
-            this.notEmptyCondition.notifyAll();
-        }
+    	this.mutex.lockInterruptibly();
+    	try
+    	{
+    		this.workDone = true;
+    		this.notEmptyCondition.signalAll();
+    	}
+    	finally
+    	{
+    		this.mutex.unlock();
+    	}
     }
     
     @Override
