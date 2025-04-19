@@ -140,14 +140,24 @@ public class BlownQueue<E>
 		        {
 		            this.lockMutexIfNecessary();
 		            
-		            while (this.size.get() >= this.maxSize)
+		            while (true)
 		            {
+		            	boolean theOnlyWaitingProducer = this.aProducerIsWaiting.compareAndSet(false, true);
+		            	
+		            	if (this.size.get() < this.maxSize)
+		            	{
+		            		if (theOnlyWaitingProducer)
+		            		{
+		            			this.aProducerIsWaiting.set(false);
+		            		}
+		            		break;
+		            	}
+		            	
 		    		    if (this.aConsumerIsWaiting.compareAndSet(true, false))
 		    		    {
 		    		        this.notEmptyCondition.signalAll();
 		    		    }
 		            	
-		            	this.aProducerIsWaiting.set(true);
 		                this.notFullCondition.await();
 		            }
 		        }
@@ -184,9 +194,15 @@ public class BlownQueue<E>
 	        	
 	        	while (true)
 	        	{
+	        		boolean theOnlyWaitingConsumer = this.aConsumerIsWaiting.compareAndSet(false, true);
+	        		
 	                portion = this.nonBlockingQueue.tryDequeue();
 	                if (portion != null)
 	                {
+	                	if (theOnlyWaitingConsumer)
+	                	{
+	                		this.aConsumerIsWaiting.set(false);
+	                	}
 	                	break;
 	                }
 	
@@ -200,7 +216,6 @@ public class BlownQueue<E>
 	                    this.notFullCondition.signalAll();
 	                }
 	
-	                this.aConsumerIsWaiting.set(true);
 	                this.notEmptyCondition.await();
 	        	}
 	        }
