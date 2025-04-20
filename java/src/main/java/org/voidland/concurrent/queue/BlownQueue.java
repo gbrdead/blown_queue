@@ -115,6 +115,26 @@ public class BlownQueue<E>
     	}
     }
     
+    private void notifyAllWaitingProducers()
+    	throws InterruptedException
+    {
+        if (this.aProducerIsWaiting.compareAndSet(true, false))
+        {
+            this.lockMutexIfNecessary();
+            this.notFullCondition.signalAll();
+        }
+    }
+    
+    private void notifyAllWaitingConsumers()
+    	throws InterruptedException
+    {
+	    if (this.aConsumerIsWaiting.compareAndSet(true, false))
+	    {
+	    	this.lockMutexIfNecessary();
+	        this.notEmptyCondition.signalAll();
+	    }
+    }
+    
     private void unlockMutexIfNecessary()
     {
     	if (this.mutex.isHeldByCurrentThread())
@@ -140,14 +160,19 @@ public class BlownQueue<E>
 		        {
 		            this.lockMutexIfNecessary();
 		            
-		            while (this.size.get() >= this.maxSize)
+		            while (true)
 		            {
-		    		    if (this.aConsumerIsWaiting.compareAndSet(true, false))
-		    		    {
-		    		        this.notEmptyCondition.signalAll();
-		    		    }
+		            	boolean theOnlyWaitingProducer = this.aProducerIsWaiting.compareAndSet(false, true);
 		            	
-		            	this.aProducerIsWaiting.set(true);
+		            	if (this.size.get() < this.maxSize)
+		            	{
+		            		if (theOnlyWaitingProducer)
+		            		{
+		            			this.aProducerIsWaiting.set(false);
+		            		}
+		            		break;
+		            	}
+		            	
 		                this.notFullCondition.await();
 		            }
 		        }
@@ -158,12 +183,8 @@ public class BlownQueue<E>
 		        }
 		    }
 		    this.size.getAndIncrement();
-		
-		    if (this.aConsumerIsWaiting.compareAndSet(true, false))
-		    {
-		    	this.lockMutexIfNecessary();
-		        this.notEmptyCondition.signalAll();
-		    }
+
+		    this.notifyAllWaitingConsumers();
     	}
     	finally
     	{
@@ -184,9 +205,15 @@ public class BlownQueue<E>
 	        	
 	        	while (true)
 	        	{
+	        		boolean theOnlyWaitingConsumer = this.aConsumerIsWaiting.compareAndSet(false, true);
+	        		
 	                portion = this.nonBlockingQueue.tryDequeue();
 	                if (portion != null)
 	                {
+	                	if (theOnlyWaitingConsumer)
+	                	{
+	                		this.aConsumerIsWaiting.set(false);
+	                	}
 	                	break;
 	                }
 	
@@ -195,23 +222,13 @@ public class BlownQueue<E>
 	                    return null;
 	                }
 	                
-	                if (this.aProducerIsWaiting.compareAndSet(true, false))
-	                {
-	                    this.notFullCondition.signalAll();
-	                }
-	
-	                this.aConsumerIsWaiting.set(true);
 	                this.notEmptyCondition.await();
 	        	}
 	        }
 	        
 	        int newSize = this.size.decrementAndGet();
 	        
-	        if (this.aProducerIsWaiting.compareAndSet(true, false))
-	        {
-	            this.lockMutexIfNecessary();
-	            this.notFullCondition.signalAll();
-	        }
+	        this.notifyAllWaitingProducers();
 	        
 	        if (newSize == 0)
 	        {
