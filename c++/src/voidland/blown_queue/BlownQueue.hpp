@@ -24,7 +24,7 @@ namespace voidland::concurrent::queue
 #pragma GCC diagnostic ignored "-Winterference-size"
 
 template <typename E>
-class MostlyNonBlockingPortionQueue :
+class BlownQueue :
     public MPMC_PortionQueue<E>
 {
 private:
@@ -44,7 +44,7 @@ private:
     bool workDone;
 
 public:
-    MostlyNonBlockingPortionQueue(std::size_t maxSize, std::unique_ptr<NonBlockingQueue<E>> nonBlockingQueue);
+    BlownQueue(std::size_t maxSize, std::unique_ptr<NonBlockingQueue<E>> nonBlockingQueue);
 
     void addPortion(const E& portion);
     void addPortion(E&& portion);
@@ -64,7 +64,7 @@ private:
 
 
 template <typename E>
-MostlyNonBlockingPortionQueue<E>::MostlyNonBlockingPortionQueue(std::size_t maxSize, std::unique_ptr<NonBlockingQueue<E>> nonBlockingQueue) :
+BlownQueue<E>::BlownQueue(std::size_t maxSize, std::unique_ptr<NonBlockingQueue<E>> nonBlockingQueue) :
 	size(0),
     maxSize(maxSize),
     mutex(),
@@ -79,7 +79,7 @@ MostlyNonBlockingPortionQueue<E>::MostlyNonBlockingPortionQueue(std::size_t maxS
 }
 
 template <typename E>
-inline void MostlyNonBlockingPortionQueue<E>::lockMutexIfNecessary(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
+inline void BlownQueue<E>::lockMutexIfNecessary(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
 {
 	if (!lock)
 	{
@@ -88,7 +88,7 @@ inline void MostlyNonBlockingPortionQueue<E>::lockMutexIfNecessary(std::unique_p
 }
 
 template <typename E>
-inline void MostlyNonBlockingPortionQueue<E>::notifyAllWaitingProducers(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
+inline void BlownQueue<E>::notifyAllWaitingProducers(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
 {
     bool expected = true;
     if (this->aProducerIsWaiting.compare_exchange_strong(expected, false, std::memory_order_acq_rel, std::memory_order_relaxed))
@@ -99,7 +99,7 @@ inline void MostlyNonBlockingPortionQueue<E>::notifyAllWaitingProducers(std::uni
 }
 
 template <typename E>
-inline void MostlyNonBlockingPortionQueue<E>::notifyAllWaitingConsumers(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
+inline void BlownQueue<E>::notifyAllWaitingConsumers(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
 {
     bool expected = true;
     if (this->aConsumerIsWaiting.compare_exchange_strong(expected, false, std::memory_order_acq_rel, std::memory_order_relaxed))
@@ -111,14 +111,14 @@ inline void MostlyNonBlockingPortionQueue<E>::notifyAllWaitingConsumers(std::uni
 
 
 template <typename E>
-void MostlyNonBlockingPortionQueue<E>::addPortion(const E& portion)
+void BlownQueue<E>::addPortion(const E& portion)
 {
     E portionCopy(portion);
     this->addPortion(std::move(portionCopy));
 }
 
 template <typename E>
-void MostlyNonBlockingPortionQueue<E>::addPortion(E&& portion)
+void BlownQueue<E>::addPortion(E&& portion)
 {
 	std::unique_ptr<std::unique_lock<std::mutex>> lock;
 
@@ -157,7 +157,7 @@ void MostlyNonBlockingPortionQueue<E>::addPortion(E&& portion)
 }
 
 template <typename E>
-std::optional<E> MostlyNonBlockingPortionQueue<E>::retrievePortion()
+std::optional<E> BlownQueue<E>::retrievePortion()
 {
 	std::unique_ptr<std::unique_lock<std::mutex>> lock;
 
@@ -202,7 +202,7 @@ std::optional<E> MostlyNonBlockingPortionQueue<E>::retrievePortion()
 }
 
 template <typename E>
-void MostlyNonBlockingPortionQueue<E>::ensureAllPortionsAreRetrieved()
+void BlownQueue<E>::ensureAllPortionsAreRetrieved()
 {
 	std::unique_lock lock(this->mutex);
 	this->notEmptyCondition.notify_all();
@@ -213,7 +213,7 @@ void MostlyNonBlockingPortionQueue<E>::ensureAllPortionsAreRetrieved()
 }
 
 template <typename E>
-void MostlyNonBlockingPortionQueue<E>::stopConsumers(std::size_t finalConsumerCount)
+void BlownQueue<E>::stopConsumers(std::size_t finalConsumerCount)
 {
 	std::lock_guard lock(this->mutex);
 	this->workDone = true;
@@ -221,13 +221,13 @@ void MostlyNonBlockingPortionQueue<E>::stopConsumers(std::size_t finalConsumerCo
 }
 
 template <typename E>
-std::size_t MostlyNonBlockingPortionQueue<E>::getSize()
+std::size_t BlownQueue<E>::getSize()
 {
     return this->size.load(std::memory_order_relaxed);
 }
 
 template <typename E>
-std::size_t MostlyNonBlockingPortionQueue<E>::getMaxSize()
+std::size_t BlownQueue<E>::getMaxSize()
 {
     return this->maxSize;
 }
@@ -237,10 +237,10 @@ std::size_t MostlyNonBlockingPortionQueue<E>::getMaxSize()
 #ifdef HAVE_ATOMIC_QUEUE
 
 template <typename E>
-inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createAtomicBlownQueue(std::size_t maxSize)
+inline std::unique_ptr<BlownQueue<E>> createAtomicBlownQueue(std::size_t maxSize)
 {
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<AtomicPortionQueue<E>>(maxSize);
-	return std::make_unique<MostlyNonBlockingPortionQueue<E>>(maxSize, std::move(nonBlockingQueue));
+	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
 #endif
@@ -249,10 +249,10 @@ inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createAtomicBlownQueue(
 #ifdef HAVE_MOODYCAMEL_CONCURRENT_QUEUE
 
 template <typename E>
-inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createConcurrentBlownQueue(std::size_t maxSize)
+inline std::unique_ptr<BlownQueue<E>> createConcurrentBlownQueue(std::size_t maxSize)
 {
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<ConcurrentPortionQueue<E>>(maxSize);
-	return std::make_unique<MostlyNonBlockingPortionQueue<E>>(maxSize, std::move(nonBlockingQueue));
+	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
 #endif
@@ -261,10 +261,10 @@ inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createConcurrentBlownQu
 #ifdef HAVE_BOOST_LOCKFREE
 
 template <typename E>
-inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createLockfreeBlownQueue(std::size_t maxSize)
+inline std::unique_ptr<BlownQueue<E>> createLockfreeBlownQueue(std::size_t maxSize)
 {
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<LockfreePortionQueue<E>>(maxSize);
-	return std::make_unique<MostlyNonBlockingPortionQueue<E>>(maxSize, std::move(nonBlockingQueue));
+	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
 #endif
@@ -273,25 +273,25 @@ inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createLockfreeBlownQueu
 #ifdef HAVE_XENIUM
 
 template <typename E>
-inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createMichaelScottBlownQueue(std::size_t maxSize)
+inline std::unique_ptr<BlownQueue<E>> createMichaelScottBlownQueue(std::size_t maxSize)
 {
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<MichaelScottPortionQueue<E>>(maxSize);
-	return std::make_unique<MostlyNonBlockingPortionQueue<E>>(maxSize, std::move(nonBlockingQueue));
+	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
 template <typename E>
-inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createRamalheteBlownQueue(std::size_t maxSize)
+inline std::unique_ptr<BlownQueue<E>> createRamalheteBlownQueue(std::size_t maxSize)
 {
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<RamalhetePortionQueue<E>>(maxSize);
-	return std::make_unique<MostlyNonBlockingPortionQueue<E>>(maxSize, std::move(nonBlockingQueue));
+	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
 template <typename E>
-inline std::unique_ptr<MostlyNonBlockingPortionQueue<E>> createVyukovBlownQueue(std::size_t maxSize)
+inline std::unique_ptr<BlownQueue<E>> createVyukovBlownQueue(std::size_t maxSize)
 {
 	maxSize = 1 << (unsigned)std::floorl(std::log2l(maxSize));
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<VyukovPortionQueue<E>>(maxSize);
-	return std::make_unique<MostlyNonBlockingPortionQueue<E>>(maxSize, std::move(nonBlockingQueue));
+	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
 #endif

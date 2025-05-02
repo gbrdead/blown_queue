@@ -1,7 +1,10 @@
 .deps/
 *.o
 .dirstamp
-build/
+/build/
+/blown_queue_config.h
+/blown_queue_tests
+/blown_queue-*.tar.*
 
 /Makefile
 /Makefile.in
@@ -9,8 +12,6 @@ build/
 /autom4te.cache/
 /compile
 /config.guess
-/config.h
-/*.h.in
 /config.log
 /config.status
 /config.sub

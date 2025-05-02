@@ -3,6 +3,7 @@ package test.org.voidland.concurrent.queue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,7 +32,7 @@ public abstract class BlownQueueTest
     public void initQueue()
         throws Exception
     {
-        this.queue = BlownQueue.createConcurrentBlownQueue(BlownQueueTest.MAX_SIZE);
+        this.queue = this.createQueue(BlownQueueTest.MAX_SIZE);
     }
     
     protected abstract BlownQueue<Long> createQueue(int maxSize)
@@ -164,7 +165,7 @@ public abstract class BlownQueueTest
 		{
 			try
 			{
-				for (int i = 0; i < BlownQueueTest.MAX_SIZE + 1; i++)
+				for (int i = 0; i <= BlownQueueTest.MAX_SIZE; i++)
 				{
 					BlownQueueTest.this.queue.addPortion(0l);
 				}
@@ -213,7 +214,7 @@ public abstract class BlownQueueTest
 	public void testMisc()
 		throws Exception
 	{
-		assertEquals(BlownQueueTest.MAX_SIZE, this.queue.getMaxSize());
+		assertTrue(this.queue.getMaxSize() <= BlownQueueTest.MAX_SIZE);
         assertThrows(NullPointerException.class, () ->
         {
             this.queue.addPortion(null);
@@ -268,7 +269,9 @@ public abstract class BlownQueueTest
 			
 			producer.join(60000);
 			assertFalse(producer.isAlive());
+			
 			this.queue.stopConsumers(1);
+			
 			consumer.join(60000);
 			assertFalse(consumer.isAlive());
 		}

@@ -1,15 +1,25 @@
-AC_INIT([blown_queue], [1.0.0], [gbr@intland.org])
-AM_INIT_AUTOMAKE([foreign])
-AC_CONFIG_HEADERS([blown_queue_config.h])
+AC_INIT([blown_queue], [1.0.0], [gbr@voidland.org])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 
-AX_CXX_COMPILE_STDCXX([17], [noext], [optional])
-if test "x${HAVE_CXX17}" = "x0"
+BUILD_TESTS="yes"
+
+
+AX_CXX_COMPILE_STDCXX([20], [noext], [optional])
+if test "x${HAVE_CXX20}" = "x0"
 then
-    AX_CXX_COMPILE_STDCXX([14], [noext], [optional])
-    if test "x${HAVE_CXX14}" = "x0"
+
+    AC_MSG_WARN([C++20 not detected, the tests will not be built.])
+    BUILD_TESTS="no"
+    
+    AX_CXX_COMPILE_STDCXX([17], [noext], [optional])
+    if test "x${HAVE_CXX17}" = "x0"
     then
-        AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+        AX_CXX_COMPILE_STDCXX([14], [noext], [optional])
+        if test "x${HAVE_CXX14}" = "x0"
+        then
+            AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+        fi
     fi
 fi
 
@@ -28,6 +38,10 @@ fi
 AC_LANG_PUSH([C++])
 
 
+rm -f blown_queue_config.h
+touch blown_queue_config.h
+
+
 AC_MSG_CHECKING([for atomic_queue library])
 AC_LINK_IFELSE(
     [AC_LANG_PROGRAM(
@@ -44,7 +58,7 @@ AC_LINK_IFELSE(
         ]])],
     [
         ATOMIC_QUEUE="yes"
-        AC_DEFINE([HAVE_ATOMIC_QUEUE], [1], [Define if atomic_queue is detected.])
+        echo "#define HAVE_ATOMIC_QUEUE" >> blown_queue_config.h
         AC_MSG_RESULT([yes])
     ],
     [
@@ -70,8 +84,8 @@ AC_LINK_IFELSE(
         ]])],
     [
         MOODYCAMEL_CONCURRENT_QUEUE="yes"
-        AC_DEFINE([HAVE_MOODYCAMEL_CONCURRENT_QUEUE], [1], [Define if moodycamel::ConcurrentQueue  is detected.])
-        AC_DEFINE([HAVE_MOODYCAMEL_IN_INCLUDE_PATH], [1], [Define if concurrentqueue/moodycamel/concurrentqueue.h is the header to be included.])
+        echo "#define HAVE_MOODYCAMEL_CONCURRENT_QUEUE" >> blown_queue_config.h
+        echo "#define HAVE_MOODYCAMEL_IN_INCLUDE_PATH" >> blown_queue_config.h
         AC_MSG_RESULT([yes])
     ],
     [
@@ -90,7 +104,7 @@ AC_LINK_IFELSE(
                 ]])],
             [
                 MOODYCAMEL_CONCURRENT_QUEUE="yes"
-                AC_DEFINE([HAVE_MOODYCAMEL_CONCURRENT_QUEUE], [1], [Define if moodycamel::ConcurrentQueue  is detected.])
+                echo "#define HAVE_MOODYCAMEL_CONCURRENT_QUEUE" >> blown_queue_config.h
                 AC_MSG_RESULT([yes])
             ],
             [
@@ -115,7 +129,7 @@ AC_LINK_IFELSE(
         ]])],
     [
         BOOST_LOCKFREE="yes"
-        AC_DEFINE([HAVE_BOOST_LOCKFREE], [1], [Define if Boost.Lockfree is detected.])
+        echo "#define HAVE_BOOST_LOCKFREE" >> blown_queue_config.h
         AC_MSG_RESULT([yes])
     ],
     [
@@ -155,7 +169,7 @@ AC_LINK_IFELSE(
         ]])],
     [
         XENIUM="yes"
-        AC_DEFINE([HAVE_XENIUM], [1], [Define if xenium is detected.])
+        echo "#define HAVE_XENIUM" >> blown_queue_config.h
         AC_MSG_RESULT([yes])
     ],
     [
@@ -165,27 +179,67 @@ AC_LINK_IFELSE(
     ])
 
 
+
+if test "x${ATOMIC_QUEUE}" != "xyes" && \
+   test "x${MOODYCAMEL_CONCURRENT_QUEUE}" != "xyes" && \
+   test "x${BOOST_LOCKFREE}" != "xyes" && \
+   test "x${XENIUM}" != "xyes"
+then
+    AC_MSG_WARN([No supported lock-free queue detected.])
+    BUILD_TESTS="no"
+fi
+
+
+
+if test "x${BUILD_TESTS}" != "xno"
+then
+    GTEST_CPPFLAGS="-DGTEST_HAS_PTHREAD=1"
+    GTEST_LIBS="-lgtest_main -lgtest"
+
+    save_CPPFLAGS="${CPPFLAGS}"
+    save_LIBS="${LIBS}"
+
+    CPPFLAGS="${GTEST_CPPFLAGS} ${CPPFLAGS}"
+    LIBS="${GTEST_LIBS} ${LIBS}"
+
+    AC_MSG_CHECKING([for GoogleTest library])
+    AC_LINK_IFELSE(
+        [AC_LANG_SOURCE(
+            [[
+                #include <gtest/gtest.h>
+            
+                class ATest :
+                    public testing::Test
+                {
+                };
+            
+                TEST_F(ATest, aCase)
+                {
+                }
+            ]])],
+        [
+            GTEST="yes"
+            AC_MSG_RESULT([yes])
+        ],
+        [
+            GTEST="no"
+            AC_MSG_RESULT([no])
+            AC_MSG_NOTICE([Get GoogleTest from https://github.com/google/googletest or install it using your package manager (the Debian package name is libgtest-dev).])
+            AC_MSG_WARN([GoogleTest not detected, the tests will not be built.])
+            BUILD_TESTS="no"
+        ])
+    
+    CPPFLAGS="${save_CPPFLAGS}"
+    LIBS="${save_LIBS}"
+fi
+    
+
 AC_LANG_POP([C++])
 
 
-if  test "x${ATOMIC_QUEUE}" != "xyes" && \
-    test "x${MOODYCAMEL_CONCURRENT_QUEUE}" != "xyes" && \
-    test "x${BOOST_LOCKFREE}" != "xyes" && \
-    test "x${XENIUM}" != "xyes"
-then
-    AC_MSG_WARN([No supported lock-free queue detected.])
-fi
-
-AC_SUBST([HAVE_ATOMIC_QUEUE])
-AC_SUBST([HAVE_MOODYCAMEL_CONCURRENT_QUEUE])
-AC_SUBST([HAVE_MOODYCAMEL_IN_INCLUDE_PATH])
-AC_SUBST([HAVE_BOOST_LOCKFREE])
-AC_SUBST([HAVE_XENIUM])
-
-AM_CONDITIONAL(ATOMIC_QUEUE, test "x${ATOMIC_QUEUE}" = "xyes")
-AM_CONDITIONAL(MOODYCAMEL_CONCURRENT_QUEUE, test "x${MOODYCAMEL_CONCURRENT_QUEUE}" = "xyes")
-AM_CONDITIONAL(BOOST_LOCKFREE, test "x${BOOST_LOCKFREE}" = "xyes")
-AM_CONDITIONAL(XENIUM, test "x${XENIUM}" = "xyes")
+AC_SUBST([GTEST_CPPFLAGS])
+AC_SUBST([GTEST_LIBS])
+AM_CONDITIONAL(BUILD_TESTS, test "x${BUILD_TESTS}" = "xyes")
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
