@@ -1,0 +1,33 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: apt update
+      run: sudo apt update
+    - name: Install tools
+      run: sudo apt install -y autoconf automake libtool autoconf-archive cmake
+    - name: autoreconf
+      run: cd c++ && autoreconf -s -i
+    - name: Install libraries
+      run: sudo apt install libboost-dev libgtest-dev && ./.github/workflows/install_queues.sh "${HOME}"
+    - name: configure
+      run: cd c++ && CPPFLAGS="-I ${HOME}/include" ./configure
+    - name: make
+      run: cd c++ && make
+    - name: make check
+      run: cd c++ && make check
+    - name: run tests
+      run: cd c++ && ./blown_queue_tests
+    - name: make distcheck
+      run: cd c++ && make distcheck

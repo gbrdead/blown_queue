@@ -307,7 +307,7 @@ public:
 
 template <typename E>
 VyukovPortionQueue<E>::VyukovPortionQueue(std::size_t maxSize) :
-	queue(1 << (unsigned)std::ceill(std::log2l(maxSize)))
+	queue(1 << (unsigned)std::ceil(std::log2((long double)maxSize)))
 {
 }
 

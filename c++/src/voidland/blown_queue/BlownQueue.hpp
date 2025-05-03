@@ -289,7 +289,7 @@ inline std::unique_ptr<BlownQueue<E>> createRamalheteBlownQueue(std::size_t maxS
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createVyukovBlownQueue(std::size_t maxSize)
 {
-	maxSize = 1 << (unsigned)std::floorl(std::log2l(maxSize));
+	maxSize = 1 << (unsigned)std::floor(std::log2((long double)maxSize));
     std::unique_ptr<queue::NonBlockingQueue<E>> nonBlockingQueue = std::make_unique<VyukovPortionQueue<E>>(maxSize);
 	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
