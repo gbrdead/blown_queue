@@ -151,27 +151,24 @@ using BlownQueueCreators = testing::Types<
 	AtomicBlownQueueCreator<long>
 #endif
 
-#if defined(HAVE_ATOMIC_QUEUE)
-	,
-#endif
-
 #ifdef HAVE_MOODYCAMEL_CONCURRENT_QUEUE
+#	if defined(HAVE_ATOMIC_QUEUE)
+	,
+#	endif
 	ConcurrentBlownQueueCreator<long>
 #endif
 
-#if defined(HAVE_ATOMIC_QUEUE) || defined(HAVE_MOODYCAMEL_CONCURRENT_QUEUE)
-	,
-#endif
-
 #ifdef HAVE_BOOST_LOCKFREE
+#	if defined(HAVE_ATOMIC_QUEUE) || defined(HAVE_MOODYCAMEL_CONCURRENT_QUEUE)
+	,
+#	endif
 	LockfreeBlownQueueCreator<long>
 #endif
 
-#if defined(HAVE_ATOMIC_QUEUE) || defined(HAVE_MOODYCAMEL_CONCURRENT_QUEUE) || defined(HAVE_BOOST_LOCKFREE)
-	,
-#endif
-
 #ifdef HAVE_XENIUM
+#	if defined(HAVE_ATOMIC_QUEUE) || defined(HAVE_MOODYCAMEL_CONCURRENT_QUEUE) || defined(HAVE_BOOST_LOCKFREE)
+	,
+#	endif
 	MichaelScottBlownQueueCreator<long>,
 	RamalheteBlownQueueCreator<long>,
 	VyukovBlownQueueCreator<long>

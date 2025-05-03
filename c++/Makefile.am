@@ -1,4 +1,5 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src
+DISTCLEANFILES = blown_queue_config.h
 
 
 voidland_includedir = $(includedir)/voidland/blown_queue
