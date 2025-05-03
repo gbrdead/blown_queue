@@ -1,3 +1,6 @@
+dist_noinst_DATA = $(top_srcdir)/LICENSE
+
+
 AM_CPPFLAGS = -I$(top_srcdir)/src
 DISTCLEANFILES = blown_queue_config.h
 
