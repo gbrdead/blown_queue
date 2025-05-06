@@ -29,23 +29,23 @@ import java.util.Optional;
 public interface MPMC_PortionQueue<E>
 {
 	/**
-	 * Adds a portion to the queue, waiting for the queue to become non-full, if necessary.
+	 * Adds a portion to the queue, waiting for the queue to become non-full if necessary.
 	 * 
 	 * @param portion the portion (element) to be added
 	 * 
-	 * @throws InterruptedException if the thread is interrupted while waiting for the queue to become non-full
-	 * @throws NullPointerException if portion is null
+	 * @throws InterruptedException if the current thread is interrupted while waiting for the queue to become non-full
+	 * @throws NullPointerException if {@code portion} is {@code null}
 	 */
 	void addPortion(E portion)
 			throws InterruptedException, NullPointerException;
 	
 	/**
-	 * Retrieves a portion from the queue, waiting for the queue to become non-empty, if necessary.<br>
-	 * Returns null if the queue's work is done. After a consumer receives a null portion it must never call this method again.
+	 * Retrieves a portion from the queue, waiting for the queue to become non-empty if necessary.<br>
+	 * Returns {@code null} if the queue's work is done. After a consumer receives a {@code null} portion it must never call this method again.
 	 * 
-	 * @return the retrieved portion (element); null if the queue is empty and no more portions will ever be added to it
+	 * @return the retrieved portion (element); {@code null} if the queue is empty and no more portions will ever be added to it
 	 * 
-	 * @throws InterruptedException if the thread is interrupted while waiting for the queue to become non-empty
+	 * @throws InterruptedException if the current thread is interrupted while waiting for the queue to become non-empty
 	 */
 	E retrievePortion()
 			throws InterruptedException;
@@ -56,20 +56,20 @@ public interface MPMC_PortionQueue<E>
 	 * i.e. after the last call to {@link #addPortion(E)}.<br>
 	 * Calling this method is not mandatory but it may help with fulfilling the requirements of {@link #stopConsumers(int)}.
 	 * 
-	 * @throws InterruptedException if the thread is interrupted while waiting for the portions to be retrieved
+	 * @throws InterruptedException if the current thread is interrupted while waiting for the portions to be retrieved
 	 */
 	void ensureAllPortionsAreRetrieved()
 			throws InterruptedException;
 	
 	/**
-	 * Makes sure that all consumers that have called or may call {@link #retrievePortion()} get a null portion instead of waiting.<br>
+	 * Makes sure that all consumers that have called or may call {@link #retrievePortion()} get a {@code null} portion instead of waiting.<br>
 	 * After calling this method the queue must not be used anymore.<br>
 	 * It is important that the consumer count is the final one, i.e. no more consumers using the queue will be ever be started.
 	 * Do not get tempted to use a "safe" big number for the consumer count because the time and space complexity of this method may be O(finalConsumerThreadsCount).<br>
 	 *  
-	 *  @param finalConsumerThreadsCount the final consumer thread count; {@link #retrievePortion()} will return null at least that many times
+	 *  @param finalConsumerThreadsCount the final consumer thread count; {@link #retrievePortion()} will return {@code null} at least that many times
 	 *  
-	 *  @throws InterruptedException if the thread is interrupted while stopping the consumers
+	 *  @throws InterruptedException if the current thread is interrupted while stopping the consumers
 	 */
 	void stopConsumers(int finalConsumerThreadsCount)
 		throws InterruptedException;
@@ -83,7 +83,9 @@ public interface MPMC_PortionQueue<E>
     int getSize();
     
     /**
-     * Returns the targeted maximum size of the queue. 
+     * Returns the targeted maximum size of the queue. The queue may exceed this size occasionally by just a few elements. 
+     * 
+     * @return the maximum size of the queue 
      */
     int getMaxSize();
 }

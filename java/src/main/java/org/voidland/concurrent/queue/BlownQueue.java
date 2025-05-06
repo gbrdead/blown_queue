@@ -22,9 +22,11 @@ import java.util.concurrent.locks.ReentrantLock;
  * </ul>
  * </li>
  * <li>
- * Implementing {@link #NonBlockingQueue} for the lock-free queue of your choice and directly calling {@link #BlownQueue(int, NonBlockingQueue)}. 
+ * Implementing {@link NonBlockingQueue} for the lock-free queue of your choice and directly calling {@link #BlownQueue(int, NonBlockingQueue)}. 
  * </li>
  * </ol>
+ * 
+ * @param <E> the type of the portions (elements) in the queue
  * 
  * @see <a href="https://github.com/gbrdead/blown_queue/blob/master/README.md">rationale</a>
  */
@@ -33,23 +35,25 @@ public class BlownQueue<E>
 {
 	/**
 	 * A thin wrapper of a lock-free queue. Its methods must not block (or wait in any other fashion) under any circumstances.<br>
-	 * The wrapped queue may be bounded or not. If bounded, use the same maximum size as the one given to {@link #BlownQueue(int, NonBlockingQueue)}.
+	 * The wrapped queue may be bounded or not. If bounded, use the same maximum size as the one given to {@link BlownQueue#BlownQueue(int, NonBlockingQueue)}.
+	 * 
+	 * @param <E> the type of the elements in the queue
 	 */
 	public interface NonBlockingQueue<E>
 	{
 		/**
 		 * Attempts to add a portion to the queue. This method must never block.<br>
-		 * If the wrapped queue is unbounded, this method should always return true.
+		 * If the wrapped queue is unbounded, this method is expected to always return {@code true}.
 		 * 
 		 * @param portion the portion (element) to be added
-		 * @return true if the portion was added successfully; false if the maximum size of the queue would be exceeded 
+		 * @return {@code true} if the portion was added successfully; {@code false} if the maximum size of the queue would be exceeded 
 		 */
 	    boolean tryEnqueue(E portion);
 	    
 	    /**
 	     * Attempts to retrieve a portion from the queue. This method must never block.<br>
 	     * 
-	     * @return the retrieved portion (element); null if the queue is empty
+	     * @return the retrieved portion; {@code null} if the queue is empty
 	     */
 	    E tryDequeue();
 	}
@@ -75,6 +79,8 @@ public class BlownQueue<E>
      * @param <E> the type of the portions (elements) in the queue
      * @param maxSize the maximum number of portions in the queue;
      * 		may be exceeded occasionally by up to the number of producer threads
+     * 
+     * @return the created {@link #BlownQueue}
      */
     public static <E> BlownQueue<E> createConcurrentBlownQueue(int maxSize)
     {
