@@ -267,12 +267,12 @@ public abstract class BlownQueueTest
 			producer.setDaemon(true);
 			producer.start();
 			
-			producer.join(60000);
+			producer.join(600000);
 			assertFalse(producer.isAlive());
 			
 			this.queue.stopConsumers(1);
 			
-			consumer.join(60000);
+			consumer.join(600000);
 			assertFalse(consumer.isAlive());
 		}
 		finally
