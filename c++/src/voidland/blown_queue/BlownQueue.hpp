@@ -15,14 +15,64 @@
 #include "blown_queue_config.h"
 
 
+/**
+ * @file
+ */
+/**
+ * @mainpage
+ * This package implements a <a href="https://github.com/gbrdead/blown_queue">BLocking Only When Necessary Queue</a>.
+ * <br>
+ * The entry point to the API is @ref voidland::concurrent::queue::BlownQueue.
+ */
 
 namespace voidland::concurrent::queue
 {
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Winterference-size"
+#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Winterference-size"
+#endif
 
+/**
+ * An {@link MPMC_PortionQueue} that internally uses a lock-free queue.
+ * <br>
+ * If any operation needs waiting, it will block and the CPU will be yielded to another thread.<br>
+ * Blocking is performed as rarely and for as shortly as possible.<br>
+ * <br>
+ * Obtaining an instance of this queue can be done in one of the following ways:
+ * <ol>
+ * <li>
+ * Using one of the predefined implementations by calling its corresponding factory method. So far, these are:<br>
+ * <ul>
+ * <li>
+ * {@link createAtomicBlownQueue(std::size_t)}
+ * </li>
+ * <li>
+ * {@link createConcurrentBlownQueue(std::size_t)}
+ * </li>
+ * <li>
+ * {@link createLockfreeBlownQueue(std::size_t)}
+ * </li>
+ * <li>
+ * {@link createMichaelScottBlownQueue(std::size_t)}
+ * </li>
+ * <li>
+ * {@link createRamalheteBlownQueue(std::size_t)}
+ * </li>
+ * <li>
+ * {@link createVyukovBlownQueue(std::size_t)}
+ * </li>
+ * </ul>
+ * </li>
+ * <li>
+ * Implementing {@link NonBlockingQueue} for the lock-free queue of your choice and directly calling
+ * the constructor {@link BlownQueue::BlownQueue(std::size_t, std::unique_ptr<NonBlockingQueue<E>>)}.
+ * </li>
+ * </ol>
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ */
 template <typename E>
 class BlownQueue :
     public MPMC_PortionQueue<E>
@@ -44,6 +94,13 @@ private:
     bool workDone;
 
 public:
+    /**
+     * Creates a {@link BlownQueue}.
+     *
+     * @param maxSize the maximum number of portions in the queue;
+     * 		may be exceeded occasionally by up to the number of producer threads (but only if the wrapped queue is unbounded)
+     * @param nonBlockingQueue a wrapper for the backing lock-free queue
+     */
     BlownQueue(std::size_t maxSize, std::unique_ptr<NonBlockingQueue<E>> nonBlockingQueue);
 
     void addPortion(const E& portion);
@@ -55,12 +112,14 @@ public:
     std::size_t getMaxSize();
 
 private:
-    void lockMutexIfNecessary(std::unique_ptr<std::unique_lock<std::mutex>>& lock);
+    void lockMutex(std::unique_ptr<std::unique_lock<std::mutex>>& lock);
     void notifyAllWaitingProducers(std::unique_ptr<std::unique_lock<std::mutex>>& lock);
     void notifyAllWaitingConsumers(std::unique_ptr<std::unique_lock<std::mutex>>& lock);
 };
 
-#pragma GCC diagnostic pop
+#if defined(__GNUC__) && !defined(__clang__)
+	#pragma GCC diagnostic pop
+#endif
 
 
 template <typename E>
@@ -79,7 +138,7 @@ BlownQueue<E>::BlownQueue(std::size_t maxSize, std::unique_ptr<NonBlockingQueue<
 }
 
 template <typename E>
-inline void BlownQueue<E>::lockMutexIfNecessary(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
+inline void BlownQueue<E>::lockMutex(std::unique_ptr<std::unique_lock<std::mutex>>& lock)
 {
 	if (!lock)
 	{
@@ -93,7 +152,7 @@ inline void BlownQueue<E>::notifyAllWaitingProducers(std::unique_ptr<std::unique
     bool expected = true;
     if (this->aProducerIsWaiting.compare_exchange_strong(expected, false, std::memory_order_acq_rel, std::memory_order_relaxed))
     {
-		this->lockMutexIfNecessary(lock);
+		this->lockMutex(lock);
 		this->notFullCondition.notify_all();
     }
 }
@@ -104,7 +163,7 @@ inline void BlownQueue<E>::notifyAllWaitingConsumers(std::unique_ptr<std::unique
     bool expected = true;
     if (this->aConsumerIsWaiting.compare_exchange_strong(expected, false, std::memory_order_acq_rel, std::memory_order_relaxed))
     {
-		this->lockMutexIfNecessary(lock);
+		this->lockMutex(lock);
 		this->notEmptyCondition.notify_all();
     }
 }
@@ -126,7 +185,7 @@ void BlownQueue<E>::addPortion(E&& portion)
     {
         if (this->size.load(std::memory_order_acquire) >= this->maxSize)
         {
-        	this->lockMutexIfNecessary(lock);
+        	this->lockMutex(lock);
 
             while (true)
             {
@@ -164,7 +223,7 @@ std::optional<E> BlownQueue<E>::retrievePortion()
     E portion;
     if (!this->nonBlockingQueue->tryDequeue(portion))
     {
-    	this->lockMutexIfNecessary(lock);
+    	this->lockMutex(lock);
 
         while (true)
         {
@@ -194,7 +253,7 @@ std::optional<E> BlownQueue<E>::retrievePortion()
 
     if (newSize == 0)
     {
-    	this->lockMutexIfNecessary(lock);
+    	this->lockMutex(lock);
         this->emptyCondition.notify_one();
     }
 
@@ -236,6 +295,15 @@ std::size_t BlownQueue<E>::getMaxSize()
 
 #ifdef HAVE_ATOMIC_QUEUE
 
+/**
+ * Creates a @ref voidland::concurrent::queue::BlownQueue backed by an <a href="https://max0x7ba.github.io/atomic_queue/">atomic_queue</a>.
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ * @param maxSize the maximum number of portions in the queue;
+ * 		may be exceeded occasionally by up to the number of producer threads
+ *
+ * @return the created @ref voidland::concurrent::queue::BlownQueue
+ */
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createAtomicBlownQueue(std::size_t maxSize)
 {
@@ -248,6 +316,15 @@ inline std::unique_ptr<BlownQueue<E>> createAtomicBlownQueue(std::size_t maxSize
 
 #ifdef HAVE_MOODYCAMEL_CONCURRENT_QUEUE
 
+/**
+ * Creates a @ref voidland::concurrent::queue::BlownQueue backed by a <a href="https://github.com/cameron314/concurrentqueue">moodycamel::ConcurrentQueue</a>.
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ * @param maxSize the maximum number of portions in the queue;
+ * 		may be exceeded occasionally by up to the number of producer threads
+ *
+ * @return the created @ref voidland::concurrent::queue::BlownQueue
+ */
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createConcurrentBlownQueue(std::size_t maxSize)
 {
@@ -260,6 +337,15 @@ inline std::unique_ptr<BlownQueue<E>> createConcurrentBlownQueue(std::size_t max
 
 #ifdef HAVE_BOOST_LOCKFREE
 
+/**
+ * Creates a @ref voidland::concurrent::queue::BlownQueue backed by a <a href="https://www.boost.org/doc/libs/release/doc/html/doxygen/classboost_1_1lockfree_1_1queue.html">Boost lock-free queue</a>.
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ * @param maxSize the maximum number of portions in the queue;
+ * 		may be exceeded occasionally by up to the number of producer threads
+ *
+ * @return the created @ref voidland::concurrent::queue::BlownQueue
+ */
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createLockfreeBlownQueue(std::size_t maxSize)
 {
@@ -272,6 +358,15 @@ inline std::unique_ptr<BlownQueue<E>> createLockfreeBlownQueue(std::size_t maxSi
 
 #ifdef HAVE_XENIUM
 
+/**
+ * Creates a @ref voidland::concurrent::queue::BlownQueue backed by a <a href="https://mpoeter.github.io/xenium/classxenium_1_1michael__scott__queue.html">xenium michael_scott_queue</a>.
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ * @param maxSize the maximum number of portions in the queue;
+ * 		may be exceeded occasionally by up to the number of producer threads
+ *
+ * @return the created @ref voidland::concurrent::queue::BlownQueue
+ */
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createMichaelScottBlownQueue(std::size_t maxSize)
 {
@@ -279,6 +374,15 @@ inline std::unique_ptr<BlownQueue<E>> createMichaelScottBlownQueue(std::size_t m
 	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
+/**
+ * Creates a @ref voidland::concurrent::queue::BlownQueue backed by a <a href="https://mpoeter.github.io/xenium/classxenium_1_1ramalhete__queue.html">xenium ramalhete_queue</a>.
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ * @param maxSize the maximum number of portions in the queue;
+ * 		may be exceeded occasionally by up to the number of producer threads
+ *
+ * @return the created @ref voidland::concurrent::queue::BlownQueue
+ */
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createRamalheteBlownQueue(std::size_t maxSize)
 {
@@ -286,6 +390,15 @@ inline std::unique_ptr<BlownQueue<E>> createRamalheteBlownQueue(std::size_t maxS
 	return std::make_unique<BlownQueue<E>>(maxSize, std::move(nonBlockingQueue));
 }
 
+/**
+ * Creates a @ref voidland::concurrent::queue::BlownQueue backed by a <a href="https://mpoeter.github.io/xenium/structxenium_1_1vyukov__bounded__queue.html">xenium vyukov_bounded_queue</a>.
+ *
+ * @tparam E the type of the portions (elements) in the queue
+ * @param maxSize the maximum number of portions in the queue;
+ * 		may be exceeded occasionally by up to the number of producer threads
+ *
+ * @return the created @ref voidland::concurrent::queue::BlownQueue
+ */
 template <typename E>
 inline std::unique_ptr<BlownQueue<E>> createVyukovBlownQueue(std::size_t maxSize)
 {

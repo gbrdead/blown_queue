@@ -31,19 +31,46 @@
 #endif
 
 
+/**
+ * @file
+ */
 
 namespace voidland::concurrent::queue
 {
 
 
+/**
+ * A thin wrapper of a lock-free queue.<br>
+ * Its methods must not block (or wait in any other fashion) under any circumstances.<br>
+ * The wrapped queue may be bounded or not.
+ * If bounded, use the same maximum size as the one passed to {@link BlownQueue::BlownQueue(std::size_t, std::unique_ptr<NonBlockingQueue<E>>)}.
+ *
+ * @param <E> the type of the elements in the queue
+ */
 template <typename E>
 class NonBlockingQueue
 {
 public:
 	virtual ~NonBlockingQueue();
 
-	virtual bool tryEnqueue(E&& portion) = 0;
-	virtual bool tryDequeue(E& portion) = 0;
+	/**
+	 * Attempts to add an element to the queue.<br>
+	 * This method must never block.<br>
+	 * If the wrapped queue is unbounded, this method is expected to always return {@code true}.
+	 *
+	 * @param element the element to be added
+	 * @return {@code true} if the element was added successfully; {@code false} if the maximum size of the queue would be exceeded
+	 */
+	virtual bool tryEnqueue(E&& element) = 0;
+
+    /**
+     * Attempts to retrieve an element from the queue.<br>
+     * This method must never block.
+     *
+     * @param element the retrieved element
+     * @return {@code true} if an element was retrieved; {@code false} if the queue is empty
+     */
+	virtual bool tryDequeue(E& element) = 0;
 };
 
 template <typename E>

@@ -1,0 +1,47 @@
+PROJECT_NAME           = "BlownQueue"
+PROJECT_NUMBER         = "@PACKAGE_VERSION@"
+
+OUTPUT_DIRECTORY       = "@builddir@/apidocs"
+
+STRIP_FROM_PATH        = "@srcdir@"
+INPUT                  = "@srcdir@/src"
+EXCLUDE                = "@srcdir@/src/test"
+RECURSIVE              = YES
+
+BUILTIN_STL_SUPPORT    = YES
+AUTOLINK_SUPPORT       = NO
+HIDE_SCOPE_NAMES       = YES
+
+EXTRACT_ALL            = NO
+EXTRACT_STATIC         = YES
+
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = YES
+SORT_MEMBERS_CTORS_1ST = YES
+
+SHOW_INCLUDE_FILES     = NO
+SHOW_HEADERFILE        = YES
+
+JAVADOC_AUTOBRIEF      = YES
+INHERIT_DOCS           = YES
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = .
+HTML_DYNAMIC_MENUS     = YES
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = YES
+LAYOUT_FILE            = "@srcdir@/DoxygenLayout.xml"
+
+HAVE_DOT               = NO
+CLASS_GRAPH            = TEXT
+COLLABORATION_GRAPH    = NO
+
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+GENERATE_DOCBOOK       = NO
+
+VERBATIM_HEADERS       = NO
+
+TAB_SIZE               = 4

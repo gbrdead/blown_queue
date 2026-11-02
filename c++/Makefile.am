@@ -1,7 +1,7 @@
-dist_noinst_DATA = $(top_srcdir)/LICENSE
+dist_noinst_DATA = $(srcdir)/LICENSE $(srcdir)/DoxygenLayout.xml
 
 
-AM_CPPFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(srcdir)/src
 DISTCLEANFILES = blown_queue_config.h
 
 
@@ -24,3 +24,12 @@ blown_queue_tests_LDADD = $(GTEST_LIBS)
 blown_queue_tests_SOURCES = src/test/BlownQueueTest.cpp
 
 endif
+
+
+apidocs: $(dist_voidland_include_HEADERS) @builddir@/Doxyfile DoxygenLayout.xml
+	$(MKDIR_P) "@builddir@/apidocs"
+	doxygen "@builddir@/Doxyfile"
+	touch "@builddir@/apidocs"
+	
+clean-local:
+	rm -rf "@builddir@/apidocs"

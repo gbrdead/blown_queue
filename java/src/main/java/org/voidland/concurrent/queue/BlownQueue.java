@@ -7,8 +7,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * An {@link MPMC_PortionQueue} that internally uses a lock-free queue.<br>
- * If any operation needs waiting, it will block (and the CPU will be yielded to another thread).<br>
+ * An {@link MPMC_PortionQueue} that internally uses a lock-free queue.
+ * <br><br>
+ * If any operation needs waiting, it will block and the CPU will be yielded to another thread.<br>
  * Blocking is performed as rarely and for as shortly as possible.<br>
  * <br>
  * Obtaining an instance of this queue can be done in one of the following ways:
@@ -17,43 +18,46 @@ import java.util.concurrent.locks.ReentrantLock;
  * Using one of the predefined implementations by calling its corresponding factory method. So far, these are:<br>
  * <ul>
  * <li>
- * {@link #createConcurrentBlownQueue(int)} - creates a queue that uses {@link ConcurrentLinkedQueue} internally
+ * {@link #createConcurrentBlownQueue(int)}
  * </li>
  * </ul>
  * </li>
  * <li>
- * Implementing {@link NonBlockingQueue} for the lock-free queue of your choice and directly calling {@link #BlownQueue(int, NonBlockingQueue)}. 
+ * Implementing {@link NonBlockingQueue} for the lock-free queue of your choice and directly calling 
+ * the constructor {@link #BlownQueue(int, NonBlockingQueue)}.
  * </li>
  * </ol>
- * 
+ *
  * @param <E> the type of the portions (elements) in the queue
- * 
- * @see <a href="https://github.com/gbrdead/blown_queue/blob/master/README.md">rationale</a>
  */
 public class BlownQueue<E>
         implements MPMC_PortionQueue<E>
 {
 	/**
-	 * A thin wrapper of a lock-free queue. Its methods must not block (or wait in any other fashion) under any circumstances.<br>
-	 * The wrapped queue may be bounded or not. If bounded, use the same maximum size as the one given to {@link BlownQueue#BlownQueue(int, NonBlockingQueue)}.
+	 * A thin wrapper of a lock-free queue.<br>
+	 * Its methods must not block (or wait in any other fashion) under any circumstances.<br>
+	 * The wrapped queue may be bounded or not.
+	 * If bounded, use the same maximum size as the one passed to {@link BlownQueue#BlownQueue(int, NonBlockingQueue)}.
 	 * 
 	 * @param <E> the type of the elements in the queue
 	 */
 	public interface NonBlockingQueue<E>
 	{
 		/**
-		 * Attempts to add a portion to the queue. This method must never block.<br>
+		 * Attempts to add an element to the queue.<br>
+		 * This method must never block.<br>
 		 * If the wrapped queue is unbounded, this method is expected to always return {@code true}.
 		 * 
-		 * @param portion the portion (element) to be added
-		 * @return {@code true} if the portion was added successfully; {@code false} if the maximum size of the queue would be exceeded 
+		 * @param element the element to be added
+		 * @return {@code true} if the element was added successfully; {@code false} if the maximum size of the queue would be exceeded 
 		 */
-	    boolean tryEnqueue(E portion);
+	    boolean tryEnqueue(E element);
 	    
 	    /**
-	     * Attempts to retrieve a portion from the queue. This method must never block.<br>
+	     * Attempts to retrieve an element from the queue.<br>
+	     * This method must never block.
 	     * 
-	     * @return the retrieved portion; {@code null} if the queue is empty
+	     * @return the retrieved element; {@code null} if the queue is empty
 	     */
 	    E tryDequeue();
 	}
@@ -74,13 +78,13 @@ public class BlownQueue<E>
     private boolean workDone;
     
     /**
-     * Creates a {@link #BlownQueue} backed by a {@link ConcurrentLinkedQueue}.
+     * Creates a {@link BlownQueue} backed by a {@link ConcurrentLinkedQueue}.
      * 
      * @param <E> the type of the portions (elements) in the queue
      * @param maxSize the maximum number of portions in the queue;
      * 		may be exceeded occasionally by up to the number of producer threads
      * 
-     * @return the created {@link #BlownQueue}
+     * @return the created {@link BlownQueue}
      */
     public static <E> BlownQueue<E> createConcurrentBlownQueue(int maxSize)
     {
@@ -89,11 +93,11 @@ public class BlownQueue<E>
     }
     
     /**
-     * Creates a {@link #BlownQueue}.
+     * Creates a {@link BlownQueue}.
      *
-     * @param nonBlockingQueue a wrapper for the backing lock-free queue
      * @param maxSize the maximum number of portions in the queue;
      * 		may be exceeded occasionally by up to the number of producer threads (but only if the wrapped queue is unbounded)
+     * @param nonBlockingQueue a wrapper for the backing lock-free queue
      */    
     public BlownQueue(int maxSize, NonBlockingQueue<E> nonBlockingQueue)
     {
@@ -112,7 +116,7 @@ public class BlownQueue<E>
         this.workDone = false;
     }
     
-    private void lockMutexIfNecessary()
+    private void lockMutex()
     		throws InterruptedException
     {
     	if (!this.mutex.isHeldByCurrentThread())
@@ -126,7 +130,7 @@ public class BlownQueue<E>
     {
         if (this.aProducerIsWaiting.compareAndSet(true, false))
         {
-            this.lockMutexIfNecessary();
+            this.lockMutex();
             this.notFullCondition.signalAll();
         }
     }
@@ -136,7 +140,7 @@ public class BlownQueue<E>
     {
 	    if (this.aConsumerIsWaiting.compareAndSet(true, false))
 	    {
-	    	this.lockMutexIfNecessary();
+	    	this.lockMutex();
 	        this.notEmptyCondition.signalAll();
 	    }
     }
@@ -164,7 +168,7 @@ public class BlownQueue<E>
 		    {
 		        if (this.size.get() >= this.maxSize)
 		        {
-		            this.lockMutexIfNecessary();
+		            this.lockMutex();
 		            
 		            while (true)
 		            {
@@ -207,7 +211,7 @@ public class BlownQueue<E>
 	        E portion = this.nonBlockingQueue.tryDequeue();
 	        if (portion == null)
 	        {
-	        	this.lockMutexIfNecessary();
+	        	this.lockMutex();
 	        	
 	        	while (true)
 	        	{
@@ -238,7 +242,7 @@ public class BlownQueue<E>
 	        
 	        if (newSize == 0)
 	        {
-	        	this.lockMutexIfNecessary();
+	        	this.lockMutex();
 	            this.emptyCondition.signal();
 	        }
 	
