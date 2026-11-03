@@ -12,15 +12,7 @@ then
     AC_MSG_WARN([C++20 not detected, the tests will not be built.])
     BUILD_TESTS="no"
     
-    AX_CXX_COMPILE_STDCXX([17], [noext], [optional])
-    if test "x${HAVE_CXX17}" = "x0"
-    then
-        AX_CXX_COMPILE_STDCXX([14], [noext], [optional])
-        if test "x${HAVE_CXX14}" = "x0"
-        then
-            AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
-        fi
-    fi
+    AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory])
 fi
 
 
