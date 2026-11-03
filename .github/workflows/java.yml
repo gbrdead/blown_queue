@@ -7,9 +7,14 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  all:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-26.04-arm
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -17,5 +22,5 @@ jobs:
       run: sudo apt update
     - name: Install tools
       run: sudo apt install -y default-jdk maven
-    - name: Build with Maven
-      run: mvn -B package --file java/pom.xml
+    - name: Build and test with Maven
+      run: mvn -B verify --file java/pom.xml

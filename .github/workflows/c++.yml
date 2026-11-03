@@ -7,12 +7,17 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
+  all:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-26.04-arm
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: apt update
       run: sudo apt update
     - name: Install tools
@@ -27,7 +32,7 @@ jobs:
       run: cd c++ && make
     - name: make check
       run: cd c++ && make check
-    - name: run tests
+    - name: Run tests
       run: cd c++ && ./blown_queue_tests
     - name: make distcheck
       run: cd c++ && make distcheck
