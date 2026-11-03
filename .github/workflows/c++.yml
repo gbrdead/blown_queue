@@ -8,31 +8,61 @@ on:
 
 jobs:
   all:
+    name: ${{ matrix.compiler.name }} / ${{ matrix.os }}
+    
     strategy:
+      fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-26.04
           - ubuntu-26.04-arm
+        compiler:
+          - name: GCC
+            cc: gcc
+            cxx: g++
+          - name: Clang
+            cc: clang
+            cxx: clang++
 
     runs-on: ${{ matrix.os }}
+    
+    env:
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
+      CXXFLAGS: -O3
 
     steps:
-    - uses: actions/checkout@v7
-    - name: apt update
-      run: sudo apt update
-    - name: Install tools
-      run: sudo apt install -y autoconf automake libtool autoconf-archive cmake
-    - name: autoreconf
-      run: cd c++ && autoreconf -s -i
-    - name: Install libraries
-      run: sudo apt install libboost-dev libgtest-dev && ./.github/workflows/install_queues.sh "${HOME}"
-    - name: configure
-      run: cd c++ && CPPFLAGS="-I ${HOME}/include" ./configure
-    - name: make
-      run: cd c++ && make
-    - name: make check
-      run: cd c++ && make check
-    - name: Run tests
-      run: cd c++ && ./blown_queue_tests
-    - name: make distcheck
-      run: cd c++ && make distcheck
+      - uses: actions/checkout@v7
+      
+      - name: apt update
+        run: sudo apt update
+        
+      - name: Install tools
+        run: sudo apt install -y autoconf automake libtool autoconf-archive cmake make g++ clang
+        
+      - name: autoreconf
+        working-directory: c++
+        run: autoreconf -s -i
+        
+      - name: Install libraries
+        run: sudo apt install libboost-dev libgtest-dev && ./.github/workflows/install_queues.sh "${HOME}"
+        
+      - name: configure
+        working-directory: c++
+        run: CPPFLAGS="-I ${HOME}/include" ./configure
+        
+      - name: make
+        working-directory: c++
+        run: make
+        
+      - name: make check
+        working-directory: c++
+        run: make check
+        
+      - name: Run tests
+        working-directory: c++
+        run: ./blown_queue_tests
+        
+      - name: make distcheck
+        working-directory: c++
+        run: make distcheck
