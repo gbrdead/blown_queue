@@ -1,0 +1,101 @@
+name: apidocs
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  generate_cpp:
+    name: Generate C++ apidocs
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v7
+      
+      - name: apt update
+        run: sudo apt update
+        
+      - name: Install tools
+        run: sudo apt install -y autoconf automake libtool autoconf-archive make doxygen
+        
+      - name: autoreconf
+        working-directory: c++
+        run: autoreconf -s -i
+        
+      - name: Install libraries
+        run: sudo apt install libboost-dev libgtest-dev && ./.github/workflows/install_queues.sh "${HOME}"
+        
+      - name: configure
+        working-directory: c++
+        run: CPPFLAGS="-I ${HOME}/include" ./configure
+        
+      - name: make apidocs
+        working-directory: c++
+        run: make apidocs
+        
+      - name: Upload C++ API documentation
+        uses: actions/upload-artifact@v7
+        with:
+          name: c++-apidocs
+          path: c++/apidocs
+          
+  generate_java:
+    name: Generate Java apidocs
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v7
+      
+      - name: apt update
+        run: sudo apt update
+
+      - name: Install tools
+        run: sudo apt install -y default-jdk maven
+
+      - name: mvn javadoc:javadoc
+        working-directory: java
+        run: mvn -B javadoc:javadoc
+        
+      - name: Upload Java API documentation
+        uses: actions/upload-artifact@v7
+        with:
+          name: java-apidocs
+          path: java/target/reports/apidocs
+
+  deploy:
+    name: Deploy apidocs
+    
+    runs-on: ubuntu-latest
+    
+    needs: [generate_cpp, generate_java]
+    
+    permissions:
+      pages: write
+      id-token: write
+  
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download C++ API documentation
+        uses: actions/download-artifact@v8
+        with:
+          name: c++-apidocs
+          path: _site/apidocs/c++
+
+      - name: Download Java API documentation
+        uses: actions/download-artifact@v8
+        with:
+          name: java-apidocs
+          path: _site/apidocs/java
+
+      - name: Upload full API documentation
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v5

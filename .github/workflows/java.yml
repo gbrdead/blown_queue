@@ -11,16 +11,20 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu-26.04
           - ubuntu-26.04-arm
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v7
-    - name: apt update
-      run: sudo apt update
-    - name: Install tools
-      run: sudo apt install -y default-jdk maven
-    - name: Build and test with Maven
-      run: mvn -B verify --file java/pom.xml
+      - uses: actions/checkout@v7
+    
+      - name: apt update
+        run: sudo apt update
+      
+      - name: Install tools
+        run: sudo apt install -y default-jdk maven
+      
+      - name: mvn verify
+        working-directory: java
+        run: mvn -B verify
