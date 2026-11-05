@@ -36,3 +36,8 @@ If the queue stays (almost) **full**|*empty* for some time then the **producers*
 1. A **consumer**|*producer* may be blocked for a short while even if the queue is not **empty**|*full*. This may happen only when the size of the queue is close to **empty**|*full*.
 2. It may overflow its upper bound, at maximum by the number of the producers. This may happen only if the underlying queue is not bounded.
 3. If the queue is close to **full**|*empty*, even **consumers**|*producers* are occasionally blocked for a short while.
+
+## API docs
+
+- [C++](https://gbrdead.github.io/blown_queue/apidocs/c++/)
+- [Java](https://gbrdead.github.io/blown_queue/apidocs/java/)
