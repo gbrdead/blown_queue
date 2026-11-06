@@ -121,10 +121,7 @@ public abstract class BlownQueueTest
 			Uninterruptibles.joinUninterruptibly(producer);
 		}
 		
-		this.queue.ensureAllPortionsAreRetrieved();
-		assertEquals(0, this.queue.getSize());
-
-		this.queue.stopConsumers(consumerCount);
+		this.queue.stopConsumers();
 		for (Thread consumer : consumers)
 		{
 			Uninterruptibles.joinUninterruptibly(consumer);
@@ -182,32 +179,6 @@ public abstract class BlownQueueTest
 		
 		this.queue.retrievePortion();
 		producer.join();
-	}
-
-	@Test
-	public void testControllerBlocking()
-		throws Exception
-	{
-		this.queue.addPortion(0l);
-		
-		Thread controller = new Thread(() ->
-		{
-			try
-			{
-				BlownQueueTest.this.queue.ensureAllPortionsAreRetrieved();
-			}
-			catch (InterruptedException e)
-			{
-				throw new RuntimeException(e);
-			}
-		});
-		controller.start();
-		Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
-		
-		assertEquals(Thread.State.WAITING, controller.getState());
-		
-		this.queue.retrievePortion();
-		controller.join();
 	}
 
 	@Test
@@ -270,7 +241,7 @@ public abstract class BlownQueueTest
 			producer.join(600000);
 			assertFalse(producer.isAlive());
 			
-			this.queue.stopConsumers(1);
+			this.queue.stopConsumers();
 			
 			consumer.join(600000);
 			assertFalse(consumer.isAlive());

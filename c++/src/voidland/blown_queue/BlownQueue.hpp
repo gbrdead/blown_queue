@@ -106,8 +106,7 @@ public:
     void addPortion(const E& portion);
     void addPortion(E&& portion);
     std::optional<E> retrievePortion();
-    void ensureAllPortionsAreRetrieved();
-    void stopConsumers(std::size_t finalConsumerCount);
+    void stopConsumers();
     std::size_t getSize();
     std::size_t getMaxSize();
 
@@ -261,18 +260,7 @@ std::optional<E> BlownQueue<E>::retrievePortion()
 }
 
 template <typename E>
-void BlownQueue<E>::ensureAllPortionsAreRetrieved()
-{
-	std::unique_lock lock(this->mutex);
-	this->notEmptyCondition.notify_all();
-	while (this->size.load(std::memory_order_acquire) > 0)
-	{
-		this->emptyCondition.wait(lock);
-	}
-}
-
-template <typename E>
-void BlownQueue<E>::stopConsumers(std::size_t finalConsumerCount)
+void BlownQueue<E>::stopConsumers()
 {
 	std::lock_guard lock(this->mutex);
 	this->workDone = true;

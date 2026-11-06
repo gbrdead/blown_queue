@@ -255,26 +255,7 @@ public class BlownQueue<E>
     }
     
     @Override
-    public void ensureAllPortionsAreRetrieved()
-    		throws InterruptedException
-    {
-    	this.mutex.lockInterruptibly();
-    	try
-    	{
-            this.notEmptyCondition.signalAll();
-            while (this.size.get() > 0)
-            {
-                this.emptyCondition.await();
-            }
-        }
-    	finally
-    	{
-    		this.mutex.unlock();
-    	}
-    }
-
-    @Override
-    public void stopConsumers(int finalConsumerThreadsCount)
+    public void stopConsumers()
     		throws InterruptedException
     {
     	this.mutex.lockInterruptibly();

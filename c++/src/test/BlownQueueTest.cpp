@@ -255,10 +255,7 @@ TYPED_TEST(BlownQueueTest, test)
 		producer.join();
 	}
 
-	this->queue->ensureAllPortionsAreRetrieved();
-	ASSERT_EQ(this->queue->getSize(), 0);
-
-	this->queue->stopConsumers(consumerCount);
+	this->queue->stopConsumers();
 	for (std::thread& consumer : consumers)
 	{
 		consumer.join();
@@ -310,28 +307,6 @@ TYPED_TEST(BlownQueueTest, testProducerBlocking)
 
 	this->queue->retrievePortion();
 	producer.join();
-}
-
-TYPED_TEST(BlownQueueTest, testControllerBlocking)
-{
-	std::atomic<bool> controllerDone(false);
-
-	this->queue->addPortion(0l);
-	std::thread controller
-		{
-			[this, &controllerDone]
-			{
-				this->queue->ensureAllPortionsAreRetrieved();
-				controllerDone.store(true);
-			}
-		};
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-	ASSERT_EQ(controllerDone.load(), false);
-
-	this->queue->retrievePortion();
-	controller.join();
 }
 
 TYPED_TEST(BlownQueueTest, testMisc)
@@ -391,7 +366,7 @@ TYPED_TEST(BlownQueueTest, testMultipleMutexesDeadlock)
 		ASSERT_EQ(producerStatus, std::cv_status::no_timeout);
 		producer.join();
 
-		this->queue->stopConsumers(1);
+		this->queue->stopConsumers();
 
 		std::cv_status consumerStatus = consumerCondition.wait_for(consumerLock, std::chrono::milliseconds(60000));
 		ASSERT_EQ(consumerStatus, std::cv_status::no_timeout);
