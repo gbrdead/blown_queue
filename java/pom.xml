@@ -21,6 +21,13 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.jctools</groupId>
+            <artifactId>jctools-core</artifactId>
+            <version>4.0.7</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit.version}</version>
@@ -52,6 +59,9 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.12.0</version>
                 <configuration>
+                    <links>
+                        <link>https://javadoc.io/doc/org.jctools/jctools-core/latest/</link>
+                    </links>
                 </configuration>
             </plugin>            
         </plugins>

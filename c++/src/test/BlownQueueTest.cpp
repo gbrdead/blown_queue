@@ -301,7 +301,7 @@ TYPED_TEST(BlownQueueTest, testProducerBlocking)
 			}
 		};
 
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 
 	ASSERT_EQ(producerDone.load(), false);
 

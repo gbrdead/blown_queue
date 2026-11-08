@@ -13,6 +13,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,14 +159,17 @@ public abstract class BlownQueueTest
 	public void testProducerBlocking()
 		throws Exception
 	{
+		AtomicBoolean producerDone = new AtomicBoolean(false);
+		
 		Thread producer = new Thread(() ->
 		{
 			try
 			{
-				for (int i = 0; i <= BlownQueueTest.MAX_SIZE; i++)
+				for (int i = 0; i <= BlownQueueTest.this.queue.getMaxSize(); i++)
 				{
 					BlownQueueTest.this.queue.addPortion(0l);
 				}
+				producerDone.set(true);
 			}
 			catch (InterruptedException e)
 			{
@@ -173,9 +177,10 @@ public abstract class BlownQueueTest
 			}
 		});
 		producer.start();
-		Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
 		
-		assertEquals(Thread.State.WAITING, producer.getState());
+		Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+		
+		assertFalse(producerDone.get());
 		
 		this.queue.retrievePortion();
 		producer.join();

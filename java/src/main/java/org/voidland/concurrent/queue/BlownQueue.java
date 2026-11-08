@@ -7,6 +7,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.jctools.queues.MpmcArrayQueue;
+
 /**
  * An {@link MPMC_PortionQueue} that internally uses a lock-free queue.
  * <br><br>
@@ -23,6 +25,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * </li>
  * <li>
  * {@link #createTransferBlownQueue(int)}
+ * </li>
+ * <li>
+ * {@link #createJcToolsBlownQueue(int)}
  * </li>
  * </ul>
  * </li>
@@ -108,6 +113,22 @@ public class BlownQueue<E>
     public static <E> BlownQueue<E> createTransferBlownQueue(int maxSize)
     {
     	NonBlockingQueue<E> nonBlockingQueue = new StandardNonBlockingQueue<>(new LinkedTransferQueue<>());
+        return new BlownQueue<E>(maxSize, nonBlockingQueue);
+    }
+
+    /**
+     * Creates a {@link BlownQueue} backed by an {@link MpmcArrayQueue}.
+     * 
+     * @param <E> the type of the portions (elements) in the queue
+     * @param maxSize the maximum number of portions in the queue;
+     * 		may be exceeded occasionally by up to the number of producer threads
+     * 
+     * @return the created {@link BlownQueue}
+     */
+    public static <E> BlownQueue<E> createJcToolsBlownQueue(int maxSize)
+    {
+    	maxSize = 1 << (31 - Integer.numberOfLeadingZeros(maxSize));
+    	NonBlockingQueue<E> nonBlockingQueue = new StandardNonBlockingQueue<>(new MpmcArrayQueue<>(maxSize));
         return new BlownQueue<E>(maxSize, nonBlockingQueue);
     }
 
