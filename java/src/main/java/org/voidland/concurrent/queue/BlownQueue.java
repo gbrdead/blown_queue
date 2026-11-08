@@ -1,6 +1,7 @@
 package org.voidland.concurrent.queue;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -19,6 +20,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * <ul>
  * <li>
  * {@link #createConcurrentBlownQueue(int)}
+ * </li>
+ * <li>
+ * {@link #createTransferBlownQueue(int)}
  * </li>
  * </ul>
  * </li>
@@ -88,10 +92,25 @@ public class BlownQueue<E>
      */
     public static <E> BlownQueue<E> createConcurrentBlownQueue(int maxSize)
     {
-    	NonBlockingQueue<E> nonBlockingQueue = new ConcurrentNonBlockingQueue<E>(maxSize);
+    	NonBlockingQueue<E> nonBlockingQueue = new StandardNonBlockingQueue<>(new ConcurrentLinkedQueue<>());
         return new BlownQueue<E>(maxSize, nonBlockingQueue);
     }
     
+    /**
+     * Creates a {@link BlownQueue} backed by a {@link LinkedTransferQueue}.
+     * 
+     * @param <E> the type of the portions (elements) in the queue
+     * @param maxSize the maximum number of portions in the queue;
+     * 		may be exceeded occasionally by up to the number of producer threads
+     * 
+     * @return the created {@link BlownQueue}
+     */
+    public static <E> BlownQueue<E> createTransferBlownQueue(int maxSize)
+    {
+    	NonBlockingQueue<E> nonBlockingQueue = new StandardNonBlockingQueue<>(new LinkedTransferQueue<>());
+        return new BlownQueue<E>(maxSize, nonBlockingQueue);
+    }
+
     /**
      * Creates a {@link BlownQueue}.
      *

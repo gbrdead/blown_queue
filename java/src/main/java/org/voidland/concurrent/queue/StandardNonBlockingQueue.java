@@ -1,19 +1,19 @@
 package org.voidland.concurrent.queue;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Queue;
 
 import org.voidland.concurrent.queue.BlownQueue.NonBlockingQueue;
 
 
-class ConcurrentNonBlockingQueue<E> 
+class StandardNonBlockingQueue<E> 
 	implements NonBlockingQueue<E>
 {
-	private ConcurrentLinkedQueue<E> queue;
+	private Queue<E> queue;
 	
 	
-	public ConcurrentNonBlockingQueue(int maxSize)
+	public StandardNonBlockingQueue(Queue<E> nonBlockingQueue)
 	{
-		this.queue = new ConcurrentLinkedQueue<>();
+		this.queue = nonBlockingQueue;
 	}
 	
     @Override
