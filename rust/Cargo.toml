@@ -1,0 +1,12 @@
+[package]
+name = "blown_queue"
+version = "1.0.0"
+edition = "2024"
+
+[dependencies]
+concurrent-queue = "2.5"
+crossbeam = "0.8"
+
+[lib]
+name = "blown_queue"
+path = "src/blown_queue.rs"
