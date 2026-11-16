@@ -1,9 +1,11 @@
-use concurrent_queue::ConcurrentQueue;
 use core::option::Option;
 use std::result::Result;
 use std::sync::mpmc::channel;
 use std::sync::mpmc::Sender;
 use std::sync::mpmc::Receiver;
+use concurrent_queue::ConcurrentQueue;
+use crossbeam_queue::ArrayQueue;
+use crossbeam_queue::SegQueue;
 
 
 
@@ -22,11 +24,19 @@ struct ConcurrentPortionQueue<E>
 
 impl<E> ConcurrentPortionQueue<E>
 {
-    pub fn new(maxSize: usize) -> Self
+    pub fn bounded(maxSize: usize) -> Self
     {
         Self
         {
             queue: ConcurrentQueue::<E>::bounded(maxSize)
+        }
+    }
+    
+    pub fn unbounded(_maxSize: usize) -> Self
+    {
+        Self
+        {
+            queue: ConcurrentQueue::<E>::unbounded()
         }
     }
 }
@@ -88,5 +98,68 @@ impl<E: Send + Sync> NonBlockingQueue<E> for AsyncMPMC_PortionQueue<E>
             Ok(portion) => Some(portion),
             Err(_) => None
         }
+    }
+}
+
+
+
+struct CrossbeamArrayPortionQueue<E>
+{
+    queue: ArrayQueue<E>
+}
+
+impl<E> CrossbeamArrayPortionQueue<E>
+{
+    pub fn new(maxSize: usize) -> Self
+    {
+        Self
+        {
+            queue: ArrayQueue::<E>::new(maxSize)
+        }
+    }
+}
+
+impl<E: Send + Sync> NonBlockingQueue<E> for CrossbeamArrayPortionQueue<E>
+{
+    fn tryEnqueue(&self, portion: E) -> Result<(), E>
+    {
+        self.queue.push(portion)
+    }
+    
+    fn tryDequeue(&self) -> Option<E>
+    {
+        self.queue.pop()
+    }
+}
+
+
+
+struct CrossbeamSegPortionQueue<E>
+{
+    queue: SegQueue<E>
+}
+
+impl<E> CrossbeamSegPortionQueue<E>
+{
+    pub fn new(_maxSize: usize) -> Self
+    {
+        Self
+        {
+            queue: SegQueue::<E>::new()
+        }
+    }
+}
+
+impl<E: Send + Sync> NonBlockingQueue<E> for CrossbeamSegPortionQueue<E>
+{
+    fn tryEnqueue(&self, portion: E) -> Result<(), E>
+    {
+        self.queue.push(portion);
+        Ok(())
+    }
+    
+    fn tryDequeue(&self) -> Option<E>
+    {
+        self.queue.pop()
     }
 }

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 concurrent-queue = "2.5"
+crossbeam-queue = "0.3"
 crossbeam = "0.8"
 
 [lib]

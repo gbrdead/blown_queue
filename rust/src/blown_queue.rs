@@ -40,19 +40,37 @@ pub struct BlownQueue<E>
 
 impl<E: Send + Sync + 'static> BlownQueue<E>
 {
-    pub fn createConcurrentBlownQueue(maxSize: usize) -> Self
+    pub fn createConcurrentBoundedBlownQueue(maxSize: usize) -> Self
     {
-        let nonBlockingQueue: Box<dyn NonBlockingQueue<E>> = Box::new(ConcurrentPortionQueue::<E>::new(maxSize));
+        let nonBlockingQueue: Box<dyn NonBlockingQueue<E>> = Box::new(ConcurrentPortionQueue::<E>::bounded(maxSize));
         BlownQueue::new(maxSize, nonBlockingQueue)
     }
     
+    pub fn createConcurrentUnboundedBlownQueue(maxSize: usize) -> Self
+    {
+        let nonBlockingQueue: Box<dyn NonBlockingQueue<E>> = Box::new(ConcurrentPortionQueue::<E>::unbounded(maxSize));
+        BlownQueue::new(maxSize, nonBlockingQueue)
+    }
+
+        pub fn createCrossbeamArrayPortionQueue(maxSize: usize) -> Self
+    {
+        let nonBlockingQueue: Box<dyn NonBlockingQueue<E>> = Box::new(CrossbeamArrayPortionQueue::<E>::new(maxSize));
+        BlownQueue::new(maxSize, nonBlockingQueue)
+    }
+
+    pub fn createCrossbeamSegPortionQueue(maxSize: usize) -> Self
+    {
+        let nonBlockingQueue: Box<dyn NonBlockingQueue<E>> = Box::new(CrossbeamSegPortionQueue::<E>::new(maxSize));
+        BlownQueue::new(maxSize, nonBlockingQueue)
+    }
+
     pub fn createAsyncMPMC_BlownQueue(maxSize: usize) -> Self
     {
         let nonBlockingQueue: Box<dyn NonBlockingQueue<E>> = Box::new(AsyncMPMC_PortionQueue::<E>::new(maxSize));
         BlownQueue::new(maxSize, nonBlockingQueue)
     }
 
-    
+            
     pub fn new(maxSize: usize, nonBlockingQueue: Box<dyn NonBlockingQueue<E>>) -> Self
     {
         Self
